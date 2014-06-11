@@ -68,7 +68,7 @@ ptrig1=ubx.block_create(ni, "std_triggers/ptrig", "ptrig1",
 					 { b=random1, num_steps=1, measure=0 },
 			   } } )
 
-ubx.ni_stat(ni)
+--ubx.ni_stat(ni)
 
 print("running webif init", ubx.block_init(webif1))
 print("running ptrig1 init", ubx.block_init(ptrig1))
