@@ -1,0 +1,67 @@
+
+local bd = require("blockdiagram")
+
+logger_conf=[[
+{
+   { blockname='imu_driver1', portname="result_arr", buff_len=2, data_len=3,}
+}
+]]
+
+function init()
+   ni:b("webif1"):do_start()
+   ni:b("imu_driver1"):do_start()
+   ni:b("random1"):do_start()
+   ni:b("servo_motor_driver1"):do_start()
+   ni:b("imu_balance1"):do_start()
+end
+
+return bd.system
+{
+   imports = {
+	"std_types/stdtypes/stdtypes.so",
+	"std_types/testtypes/testtypes.so",
+	"std_blocks/imu_driver_mp/imu_driver.so",
+	"std_blocks/imu_balance/imu_balance.so",
+	"std_blocks/servo_motor_driver/servo_motor_driver.so",
+	"std_blocks/lfds_buffers/lfds_cyclic.so",
+	"std_blocks/webif/webif.so",
+	"std_blocks/logging/file_logger.so",
+	"std_blocks/ptrig/ptrig.so",
+	"std_blocks/random/random.so"
+   },
+
+   blocks = {
+      { name="webif1", type="webif/webif" },
+      { name="imu_driver1", type="imu_driver/imu_driver" },
+      { name="random1", type="random/random" },
+      { name="servo_motor_driver1", type="servo_motor_driver/servo_motor_driver" },
+      { name="imu_balance1", type="imu_balance/imu_balance" },
+      { name="ptrig1", type="std_triggers/ptrig" },
+      { name="file_log1", type="logging/file_logger" }
+   },
+
+   connections = {
+      { src="imu_driver1.result_arr", tgt="imu_balance1.in_port_imu", buffer_length=1 },
+      { src="servo_motor_driver1.p_data_out", tgt="imu_balance1.in_port_pwm_sig", buffer_length=1 },
+      { src="imu_balance1.out_port_pwm_sig", tgt="servo_motor_driver1.p_data_in", buffer_length=1 },
+      { src="random1.rnd", tgt="imu_balance1.in_port_random", buffer_length=1 }
+   },
+
+   configurations = {
+      { name="file_log1", config = {filename="report.dat", separator=",", timestamp=1, report_conf=logger_conf}},
+      { name="webif1", config = { port="8888"} },
+      { name="imu_driver1", config = { sensor_config = {sensor_base_addr=0x41600000, sensor_slave_addr=0xA6, sensor_data_addr=0x32} } },
+      { name="random1", config = { min_max_config = { min=0, max=1000 } } },
+      { name="servo_motor_driver1", config = { axi_port_config = {ZeroDegree=1442, usPwmPeriod=20000, usConst=100, nMotors=8, baseAddr=0x43C00000 } } },
+      { name="imu_balance1",config={}},
+      { name="ptrig1", config = { period = {sec=0, usec=5000 }, sched_policy="SCHED_OTHER", sched_priority=0,
+				  trig_blocks={ 
+			  		{ b="#imu_balance1", num_steps=1, measure=0 },	
+					{ b="#imu_driver1", num_steps=1, measure=0 },
+					{ b="#servo_motor_driver1", num_steps=1, measure=0 },
+					{ b="#random1", num_steps=1, measure=0 },
+					{ b="#file_log1", num_steps=1, measure=0 }
+				  } } }
+   }
+}
+
